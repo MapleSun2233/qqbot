@@ -73,6 +73,13 @@ const SendProgress = ({
            (message.files && message.files.length > 0);
   };
 
+  // 检查处理后的消息内容是否有效（用于判断是否应该发送消息）
+  const hasValidContentAfterProcessing = (message) => {
+    return message.text ||
+           (message.images && message.images.length > 0) ||
+           (message.videos && message.videos.length > 0);
+  };
+
   // 开始发送
   const handleSend = async () => {
     console.log('handleSend 被调用');
@@ -149,6 +156,8 @@ const SendProgress = ({
 
           // 如果有文件需要上传，先上传文件
           if (currentMessage.files && currentMessage.files.length > 0) {
+            // 发送文件
+            console.log(`📝 准备发送消息给 ${contact.name}:`, {files: processedContent.files});
             for (const file of currentMessage.files) {
               try {
                 if (contact.type === 'group') {
@@ -165,26 +174,54 @@ const SendProgress = ({
             processedContent = { ...processedContent, files: [] };
           }
 
-          // 发送消息（包含文字、图片、视频）
-          console.log(`📝 准备发送消息给 ${contact.name}:`, processedContent);
-          let result;
-          if (contact.type === 'group') {
-            result = await api.sendGroupMessage(contact.id, processedContent);
-          } else {
-            result = await api.sendPrivateMessage(contact.id, processedContent);
+          if (currentMessage.videos && currentMessage.videos.length > 0) {
+            // 发送视频
+            const videoMessage = {videos: processedContent.videos}
+            console.log(`📝 准备发送消息给 ${contact.name}:`, videoMessage);
+            if (contact.type === 'group') {
+              await api.sendGroupVideoMessage(contact.id, videoMessage);
+            } else {
+              await api.sendPrivateVideoMessage(contact.id, videoMessage);
+            }
+            processedContent = { ...processedContent, videos: [] };
           }
-          console.log(`✅ 消息发送成功给 ${contact.name}:`, result);
 
-          results.push({
-            contact,
-            message: currentMessage,
-            messageIndex: messageIndex + 1,
-            success: true,
-            result,
-            timestamp: new Date()
-          });
+          // 检查处理后的消息是否还有内容需要发送
+          // 如果只有文件内容，上传文件后processedContent就变为空消息了，这时应该跳过发送
+          if (!hasValidContentAfterProcessing(processedContent)) {
+            console.log('消息处理后变为空消息，跳过发送');
+            results.push({
+              contact,
+              message: currentMessage,
+              messageIndex: messageIndex + 1,
+              success: true,
+              result: 'Skipped empty message',
+              timestamp: new Date()
+            });
+            
+            antMessage.success(`消息 ${messageIndex + 1} 处理完成: ${contact.name} (仅文件)`);
+          } else {
+            // 发送消息（包含文字、图片、视频）
+            console.log(`📝 准备发送消息给 ${contact.name}:`, processedContent);
+            let result;
+            if (contact.type === 'group') {
+              result = await api.sendGroupMessage(contact.id, processedContent);
+            } else {
+              result = await api.sendPrivateMessage(contact.id, processedContent);
+            }
+            console.log(`✅ 消息发送成功给 ${contact.name}:`, result);
 
-          antMessage.success(`消息 ${messageIndex + 1} 发送成功: ${contact.name}`);
+            results.push({
+              contact,
+              message: currentMessage,
+              messageIndex: messageIndex + 1,
+              success: true,
+              result,
+              timestamp: new Date()
+            });
+
+            antMessage.success(`消息 ${messageIndex + 1} 发送成功: ${contact.name}`);
+          }
         } catch (error) {
           console.error(`发送失败 ${contact.name}:`, error);
 
@@ -282,11 +319,17 @@ const SendProgress = ({
           processedContent = { ...processedContent, files: [] };
         }
 
+        // 检查处理后的消息是否还有内容需要发送
         let result;
-        if (contact.type === 'group') {
-          result = await api.sendGroupMessage(contact.id, processedContent);
+        if (!hasValidContentAfterProcessing(processedContent)) {
+          console.log('消息处理后变为空消息，跳过发送');
+          result = 'Skipped empty message';
         } else {
-          result = await api.sendPrivateMessage(contact.id, processedContent);
+          if (contact.type === 'group') {
+            result = await api.sendGroupMessage(contact.id, processedContent);
+          } else {
+            result = await api.sendPrivateMessage(contact.id, processedContent);
+          }
         }
 
         retryResults.push({

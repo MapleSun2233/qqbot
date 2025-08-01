@@ -49,9 +49,27 @@ class LLOneBotAPI {
       message: formattedMessage
     });
   }
+  // 发送群视频消息
+  async sendGroupVideoMessage(groupId, message) {
+    const formattedMessage = this.formatMessage(message);
+    console.log(`📤 发送群消息 (${groupId}):`, formattedMessage);
+    return this.wsManager.sendRequest('send_group_msg', {
+      group_id: groupId,
+      message: formattedMessage
+    });
+  }
 
   // 发送私聊消息
   async sendPrivateMessage(userId, message) {
+    const formattedMessage = this.formatMessage(message);
+    console.log(`📤 发送私聊消息 (${userId}):`, formattedMessage);
+    return this.wsManager.sendRequest('send_private_msg', {
+      user_id: userId,
+      message: formattedMessage
+    });
+  }
+  // 发送私聊视频消息
+  async sendPrivateVideoMessage(userId, message) {
     const formattedMessage = this.formatMessage(message);
     console.log(`📤 发送私聊消息 (${userId}):`, formattedMessage);
     return this.wsManager.sendRequest('send_private_msg', {
