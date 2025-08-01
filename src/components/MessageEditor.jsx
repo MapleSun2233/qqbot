@@ -70,31 +70,13 @@ const MessageEditor = ({ value, onChange, disabled }) => {
     });
   };
 
-  // 检查消息是否包含文本/图片/视频内容
-  const hasTextImageVideo = (message) => {
-    return (message.text && message.text.trim() !== '') || 
-           (message.images && message.images.length > 0) || 
-           (message.videos && message.videos.length > 0);
-  };
-
-  // 检查消息是否包含文件
-  const hasFiles = (message) => {
-    return message.files && message.files.length > 0;
-  };
-
   // 处理文本变化
   const handleTextChange = (e, messageIndex) => {
     const newMessages = [...messages];
-    const currentMessage = { ...newMessages[messageIndex] };
-    
-    // 如果已有文件，不能再添加文本
-    if (hasFiles(currentMessage) && e.target.value.trim() !== '') {
-      antMessage.warning('当前消息已包含文件，无法同时添加文本内容。请删除文件后再试。');
-      return;
-    }
-    
-    currentMessage.text = e.target.value;
-    newMessages[messageIndex] = currentMessage;
+    newMessages[messageIndex] = {
+      ...newMessages[messageIndex],
+      text: e.target.value
+    };
     updateMessages(newMessages);
   };
 
@@ -158,17 +140,6 @@ const MessageEditor = ({ value, onChange, disabled }) => {
         const newMessages = [...messages];
         const currentMessage = { ...newMessages[messageIndex] };
 
-        // 检查是否违反互斥规则
-        if (fileType === 'file' && hasTextImageVideo(currentMessage)) {
-          antMessage.warning('当前消息已包含文本/图片/视频，无法同时添加文件。请删除文本/图片/视频后再试。');
-          return;
-        }
-        
-        if (fileType !== 'file' && hasFiles(currentMessage)) {
-          antMessage.warning('当前消息已包含文件，无法同时添加文本/图片/视频。请删除文件后再试。');
-          return;
-        }
-
         if (fileType === 'image') {
           currentMessage.images = [...(currentMessage.images || []), fileData];
           antMessage.success(`已添加图片: ${targetFile.name}`);
@@ -211,20 +182,7 @@ const MessageEditor = ({ value, onChange, disabled }) => {
   };
 
   // 上传前检查
-  const beforeUpload = (file, fileType, messageIndex) => {
-    const currentMessage = messages[messageIndex];
-    
-    // 检查是否违反互斥规则
-    if (fileType === 'file' && hasTextImageVideo(currentMessage)) {
-      antMessage.warning('当前消息已包含文本/图片/视频，无法添加文件。请删除文本/图片/视频后再试。');
-      return false;
-    }
-    
-    if (fileType !== 'file' && hasFiles(currentMessage)) {
-      antMessage.warning('当前消息已包含文件，无法添加文本/图片/视频。请删除文件后再试。');
-      return false;
-    }
-
+  const beforeUpload = (file, fileType) => {
     if (fileType === 'image') {
       const isImage = file.type.startsWith('image/');
       if (!isImage) {
@@ -260,7 +218,7 @@ const MessageEditor = ({ value, onChange, disabled }) => {
 
   // 创建上传属性
   const createUploadProps = (fileType, accept, messageIndex) => ({
-    beforeUpload: (file) => beforeUpload(file, fileType, messageIndex),
+    beforeUpload: (file) => beforeUpload(file, fileType),
     onChange: (info) => handleFileUpload(info, fileType, messageIndex),
     showUploadList: false,
     multiple: true,
@@ -269,10 +227,6 @@ const MessageEditor = ({ value, onChange, disabled }) => {
 
   // 渲染单个消息编辑器
   const renderMessageEditor = (message, messageIndex) => {
-    // 检查消息类型以决定哪些上传按钮应该禁用
-    const hasTextImgVideo = hasTextImageVideo(message);
-    const hasFile = hasFiles(message);
-    
     return (
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
         {/* 文本输入区域 */}
@@ -283,7 +237,7 @@ const MessageEditor = ({ value, onChange, disabled }) => {
             onChange={(e) => handleTextChange(e, messageIndex)}
             placeholder="请输入要发送的消息内容..."
             rows={4}
-            disabled={disabled || hasFile}
+            disabled={disabled}
             showCount
             maxLength={1000}
             style={{ marginTop: '8px' }}
@@ -294,31 +248,31 @@ const MessageEditor = ({ value, onChange, disabled }) => {
         <div>
           <Text strong>附件：</Text>
           <Space style={{ marginTop: '8px', marginBottom: '8px' }} wrap>
-            <Upload {...createUploadProps('image', 'image/*', messageIndex)} disabled={disabled || hasFile}>
+            <Upload {...createUploadProps('image', 'image/*', messageIndex)} disabled={disabled}>
               <Button
                 icon={<FileImageOutlined />}
                 size="small"
-                disabled={disabled || hasFile}
+                disabled={disabled}
               >
                 添加图片
               </Button>
             </Upload>
 
-            <Upload {...createUploadProps('video', 'video/*', messageIndex)} disabled={disabled || hasFile}>
+            <Upload {...createUploadProps('video', 'video/*', messageIndex)} disabled={disabled}>
               <Button
                 icon={<VideoCameraOutlined />}
                 size="small"
-                disabled={disabled || hasFile}
+                disabled={disabled}
               >
                 添加视频
               </Button>
             </Upload>
 
-            <Upload {...createUploadProps('file', '*', messageIndex)} disabled={disabled || hasTextImgVideo}>
+            <Upload {...createUploadProps('file', '*', messageIndex)} disabled={disabled}>
               <Button
                 icon={<FileOutlined />}
                 size="small"
-                disabled={disabled || hasTextImgVideo}
+                disabled={disabled}
               >
                 添加文件
               </Button>
